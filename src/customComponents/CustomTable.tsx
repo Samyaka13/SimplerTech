@@ -203,7 +203,7 @@ function CustomTable() {
             <Text w={"25%"} fontSize="lg" fontWeight={'semibold'} color="black">
               Name
             </Text>
-            <Text w={"25%"} pl={16} fontSize="lg" fontWeight={'semibold'} color="black">
+            <Text w={"25%"} pl={28} fontSize="lg" fontWeight={'semibold'} color="black">
               Email
             </Text>
             <Text w={"25%"} pl={28} fontSize="lg" fontWeight={'semibold'} color="black">
