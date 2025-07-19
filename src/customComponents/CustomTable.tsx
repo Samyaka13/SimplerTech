@@ -14,15 +14,17 @@ import {
   Spinner,
   Icon,
 } from '@chakra-ui/react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ITEMS_PER_PAGE, status, type User } from '@/constants/CustomTableConstants';
 import { LuSearch } from 'react-icons/lu';
 import axios from 'axios';
 import usePaginationLogic from '@/Hooks/usePaginationLogic';
 import { GrFormNextLink, GrFormPreviousLink } from 'react-icons/gr';
+import useDebouncedSearch from '@/Hooks/useDebouncedSearch';
 
 function CustomTable() {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebouncedSearch(searchTerm, 300);
   const [data, setData] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -47,17 +49,17 @@ function CustomTable() {
 
 
   ///Fetching data from Static JSON using Axios 
-
-  axios.get('/data.json')
-    .then((res) => {
-      setData(res.data);
-      setIsLoading(false);
-    })
-    .catch((err) => {
-      console.log(err);
-      setIsLoading(false);
-    });
-
+  useEffect(() => {
+    axios.get('/data.json')
+      .then((res) => {
+        setData(res.data);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.log(err);
+        setIsLoading(false);
+      });
+  }, [])
 
 
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -65,13 +67,13 @@ function CustomTable() {
 
   const filteredUsers = useMemo(() => {
     let filtered = data;
-    const searchLower = searchTerm.toLowerCase().trim();
+    const searchLower = debouncedSearchTerm.toLowerCase().trim();
 
     if (searchLower) {
       filtered = filtered.filter((user) =>
         [user.name, user.email, user.status].some((field) =>
           field.toLowerCase().includes(searchLower)
-        ) || user.mobile.includes(searchTerm.trim())
+        ) || user.mobile.includes(debouncedSearchTerm.trim())
       );
     }
 
@@ -82,7 +84,7 @@ function CustomTable() {
     }
 
     return filtered;
-  }, [searchTerm, statusFilter, data]);
+  }, [debouncedSearchTerm, statusFilter, data]);
   const { currentPage,
     totalPages,
     currentData,
@@ -94,7 +96,7 @@ function CustomTable() {
     getPageNumbers } = usePaginationLogic(
       filteredUsers,
       ITEMS_PER_PAGE,
-      [searchTerm, statusFilter],
+      [debouncedSearchTerm, statusFilter],
       isMobile
     )
 
