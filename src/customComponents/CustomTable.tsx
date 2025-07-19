@@ -11,19 +11,60 @@ import {
   VStack,
   useBreakpointValue,
   Stack,
+  Spinner,
+  Icon,
 } from '@chakra-ui/react';
 import { useState, useMemo } from 'react';
-import { ITEMS_PER_PAGE, status, users } from '@/constants/CustomTableConstants';
+import { ITEMS_PER_PAGE, status, type User } from '@/constants/CustomTableConstants';
 import { LuSearch } from 'react-icons/lu';
+import axios from 'axios';
+import usePaginationLogic from '@/Hooks/usePaginationLogic';
+import { GrFormNextLink, GrFormPreviousLink } from 'react-icons/gr';
 
 function CustomTable() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [data, setData] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+
+
+  ////Used Fetch for data Fetching (For Evaluation purpose kept in code)
+  // useEffect(() => {
+  //   fetch('/data.json')
+  //     .then((res) => {
+  //       if (!res.ok) {
+  //         throw new Error('Network response was not ok');
+  //       }
+  //       return res.json();
+  //     }).then((data) => {
+  //       setData(data);
+  //     })
+  //     .catch((error) => {
+  //       console.error('Error fetching data:', error);
+  //     });
+  // }, []);
+
+
+
+  ///Fetching data from Static JSON using Axios 
+
+  axios.get('/data.json')
+    .then((res) => {
+      setData(res.data);
+      setIsLoading(false);
+    })
+    .catch((err) => {
+      console.log(err);
+      setIsLoading(false);
+    });
+
+
+
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   const filteredUsers = useMemo(() => {
-    let filtered = users;
+    let filtered = data;
     const searchLower = searchTerm.toLowerCase().trim();
 
     if (searchLower) {
@@ -41,94 +82,87 @@ function CustomTable() {
     }
 
     return filtered;
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, data]);
+  const { currentPage,
+    totalPages,
+    currentData,
+    startIndex,
+    handlePageChange,
+    handlePrevPage,
+    handleNextPage,
+    endIndex,
+    getPageNumbers } = usePaginationLogic(
+      filteredUsers,
+      ITEMS_PER_PAGE,
+      [searchTerm, statusFilter],
+      isMobile
+    )
 
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
-  useMemo(() => setCurrentPage(1), [searchTerm, statusFilter]);
-
-  const handlePageChange = (page: number) => setCurrentPage(page);
-  const handlePrevPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
-  const handleNextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
-
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const maxVisiblePages = isMobile ? 3 : 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else if (currentPage <= 2) {
-      for (let i = 1; i <= (isMobile ? 2 : 4); i++) pages.push(i);
-      pages.push('...', totalPages);
-    } else if (currentPage >= totalPages - 1) {
-      pages.push(1, '...');
-      for (let i = totalPages - (isMobile ? 1 : 3); i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (!isMobile) pages.push('...');
-      pages.push(currentPage);
-      if (!isMobile) pages.push(currentPage + 1, '...');
-      pages.push(totalPages);
-    }
-
-    return pages;
-  };
-
-  const MobileUserCard = ({ user, index }: { user: any; index: number }) => (
-    <Box
-      key={startIndex + index}
-      w="full"
-      bg="white"
-      border="1px solid"
-      borderColor="gray.200"
-      borderRadius="md"
-      p={4}
-      mb={3}
-    >
-      <VStack align="start" gap={3}>
-        <HStack w="full" justify="space-between">
-          <HStack>
-            <Avatar.Root size="md">
-              <Avatar.Fallback name={user.name} />
-              <Avatar.Image src={user.avatar} />
-            </Avatar.Root>
-            <VStack align="start" gap={0}>
-              <Text color="black" fontWeight="semibold" fontSize="md">
-                {user.name}
-              </Text>
-              <Text color="gray.600" fontSize="sm">
-                {user.email}
-              </Text>
-            </VStack>
-          </HStack>
-          <Text
-            color="white"
-            bg={
-              user.status === 'Successful' ? 'green.500'
-                : user.status === 'Pending' ? 'yellow.500'
-                  : user.status === 'Overdue' ? 'red.500'
-                    : 'gray.500'
-            }
-            px={2}
-            py={1}
-            borderRadius="md"
-            fontSize="xs"
-            textAlign="center"
-          >
-            {user.status}
-          </Text>
+  const MobileUserCard = ({ user, index }: { user: any; index: number }) =>
+  (<Box
+    key={startIndex + index}
+    w="full"
+    bg="white"
+    border="1px solid"
+    borderColor="gray.200"
+    borderRadius="md"
+    p={4}
+    mb={3}
+  >
+    <VStack align="start" gap={3}>
+      <HStack w="full" justify="space-between">
+        <HStack>
+          <Avatar.Root size="md">
+            <Avatar.Fallback name={user.name} />
+            <Avatar.Image src={user.avatar} />
+          </Avatar.Root>
+          <VStack align="start" gap={0}>
+            <Text color="black" fontWeight="semibold" fontSize="md">
+              {user.name}
+            </Text>
+            <Text color="gray.600" fontSize="sm">
+              {user.email}
+            </Text>
+          </VStack>
         </HStack>
-        <Box w="full">
-          <Text color="gray.600" fontSize="sm">
-            Mobile: <Text as="span" color="black">{user.mobile}</Text>
-          </Text>
-        </Box>
+        <Text
+          color="white"
+          bg={
+            user.status === 'Successful' ? 'green.500'
+              : user.status === 'Pending' ? 'yellow.500'
+                : user.status === 'Overdue' ? 'red.500'
+                  : 'gray.500'
+          }
+          px={2}
+          py={1}
+          borderRadius="md"
+          fontSize="xs"
+          textAlign="center"
+        >
+          {user.status}
+        </Text>
+      </HStack>
+      <Box w="full">
+        <Text color="gray.600" fontSize="sm">
+          Mobile: <Text as="span" color="black">{user.mobile}</Text>
+        </Text>
+      </Box>
+    </VStack>
+  </Box>
+  );
+
+  const LoadingState = () => (
+    <Box w="full" minHeight="400px" display="flex" justifyContent="center" alignItems="center">
+      <VStack gap={4}>
+        <Spinner size="xl" color="blue.500" />
+        <Text color="gray.600" fontSize="lg">Loading users data...</Text>
       </VStack>
     </Box>
   );
+
+
+
 
   return (
     <Box bg="white" borderRadius="md" boxShadow="md" p={{ base: 2, md: 4 }}>
@@ -141,7 +175,7 @@ function CustomTable() {
           gap={{ base: 3, md: 0 }}
         >
           <Text fontSize={{ base: 'lg', md: 'xl' }} color="black" fontWeight="bold">
-            Users ({filteredUsers.length})
+            Users {!isLoading && `(${filteredUsers.length})`}
           </Text>
 
           <Stack direction={{ base: 'column', sm: 'row' }} gap={4} flex={1} justify="flex-end">
@@ -153,6 +187,7 @@ function CustomTable() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 fontSize={{ base: 'sm', md: 'md' }}
+                disabled={isLoading}
               />
             </InputGroup>
 
@@ -165,6 +200,7 @@ function CustomTable() {
                 width={{ base: '32', md: '40' }}
                 value={statusFilter}
                 onValueChange={(e) => setStatusFilter(e.value)}
+                disabled={isLoading}
               >
                 <Select.HiddenSelect />
                 <Select.Control>
@@ -192,8 +228,8 @@ function CustomTable() {
           </Stack>
         </Stack>
 
-        
-        {!isMobile && (
+
+        {!isMobile && !isLoading && (
           <Box w="full" bg="gray.100" py={2} borderRadius="md">
             <HStack px={4} gap={1} justifyContent="space-between">
               {['Name', 'Email', 'Mobile', 'Status'].map((header) => (
@@ -205,17 +241,19 @@ function CustomTable() {
           </Box>
         )}
 
-       
+
         <Box w="full" minHeight="400px" borderRadius="md">
-          {currentUsers.length > 0 ? (
+          {isLoading ? (
+            <LoadingState />
+          ) : currentData.length > 0 ? (
             isMobile ? (
               <VStack w="full" gap={0}>
-                {currentUsers.map((user, index) => (
+                {currentData.map((user, index) => (
                   <MobileUserCard key={startIndex + index} user={user} index={index} />
                 ))}
               </VStack>
             ) : (
-              currentUsers.map((user, index) => (
+              currentData.map((user, index) => (
                 <Box
                   key={startIndex + index}
                   w="full"
@@ -269,8 +307,8 @@ function CustomTable() {
           )}
         </Box>
 
-        {/* Pagination */}
-        {filteredUsers.length > 0 && (
+
+        {!isLoading && filteredUsers.length > 0 && (
           <Stack
             w="full"
             direction={{ base: 'column', md: 'row' }}
@@ -293,7 +331,9 @@ function CustomTable() {
                 disabled={currentPage === 1}
                 _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
               >
-                Prev
+                <Icon size="md" color="white">
+                  <GrFormPreviousLink />
+                </Icon>
               </Button>
 
               {getPageNumbers().map((page, index) => (
@@ -321,7 +361,9 @@ function CustomTable() {
                 bg="black"
                 _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
               >
-                Next
+                <Icon size="md" color="white">
+                  <GrFormNextLink />
+                </Icon>
               </Button>
             </HStack>
           </Stack>
