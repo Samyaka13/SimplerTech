@@ -1,7 +1,8 @@
+import { status } from '@/constants/CustomTableConstants';
 import {
   Avatar,
   Box,
-  createListCollection,
+  Button,
   Flex,
   HStack,
   Input,
@@ -11,18 +12,8 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
+import { useState, useMemo } from 'react';
 import { LuSearch } from 'react-icons/lu';
-
-
-const frameworks = createListCollection({
-  items: [
-    { label: 'All', value: 'all' },
-    { label: 'Successful', value: 'successful' },
-    { label: 'Pending', value: 'pending' },
-    { label: 'Overdue', value: 'overdue' },
-  ],
-});
-
 const users = [
   {
     name: 'Alice Sharma',
@@ -110,20 +101,117 @@ const users = [
   },
 ];
 
+const ITEMS_PER_PAGE = 5;
 
 function CustomTable() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredUsers = useMemo(() => {
+    let filtered = users;
+
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((user) => {
+        return (
+          user.name.toLowerCase().includes(searchLower) ||
+          user.email.toLowerCase().includes(searchLower) ||
+          user.mobile.includes(searchTerm.trim()) ||
+          user.status.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    if (statusFilter.length > 0 && statusFilter[0] !== 'all') {
+      filtered = filtered.filter((user) =>
+        user.status.toLowerCase() === statusFilter[0].toLowerCase()
+      );
+    }
+
+    return filtered;
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
   return (
     <Box bg="white" borderRadius="md" boxShadow="md" p={4}>
       <VStack m={3} borderTopRadius="md" gap={4}>
 
         <Flex w="full" justifyContent="space-between" alignItems="center">
           <Text fontSize="xl" color={'black'} fontWeight="bold">
-            Users
+            Users ({filteredUsers.length})
           </Text>
 
           <HStack gap={4} flex={1} justifyContent="flex-end">
             <InputGroup maxW="80" startElement={<LuSearch />}>
-              <Input color={'black'} bg={'gray.100'} placeholder="Search Users" />
+              <Input
+                color={'black'}
+                bg={'gray.100'}
+                placeholder="Search by name, email, mobile, or status"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </InputGroup>
 
             <HStack>
@@ -131,11 +219,12 @@ function CustomTable() {
                 Status:
               </Text>
               <Select.Root
-                collection={frameworks}
+                collection={status}
                 size="md"
                 bg={"gray.100"}
                 width="40"
-                defaultValue={['all']}
+                value={statusFilter}
+                onValueChange={(e) => setStatusFilter(e.value)}
               >
                 <Select.HiddenSelect />
                 <Select.Control>
@@ -149,7 +238,7 @@ function CustomTable() {
                 <Portal>
                   <Select.Positioner>
                     <Select.Content>
-                      {frameworks.items.map((item) => (
+                      {status.items.map((item) => (
                         <Select.Item item={item} key={item.value}>
                           {item.label}
                           <Select.ItemIndicator />
@@ -161,40 +250,7 @@ function CustomTable() {
               </Select.Root>
             </HStack>
 
-            <HStack>
-              <Text fontSize="sm" color="gray.600">
-                Category:
-              </Text>
-              <Select.Root
-                collection={frameworks}
-                size="md"
-                width="40"
-                bg={"gray.100"}
-                defaultValue={['all']}
-              >
-                <Select.HiddenSelect />
-                <Select.Control>
-                  <Select.Trigger>
-                    <Select.ValueText color={'black'} placeholder="Select category" />
-                  </Select.Trigger>
-                  <Select.IndicatorGroup>
-                    <Select.Indicator />
-                  </Select.IndicatorGroup>
-                </Select.Control>
-                <Portal>
-                  <Select.Positioner>
-                    <Select.Content>
-                      {frameworks.items.map((item) => (
-                        <Select.Item item={item} key={item.value}>
-                          {item.label}
-                          <Select.ItemIndicator />
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Positioner>
-                </Portal>
-              </Select.Root>
-            </HStack>
+
           </HStack>
         </Flex>
 
@@ -215,51 +271,120 @@ function CustomTable() {
           </HStack>
         </Box>
 
-        {/* Scrollable Content Area */}
+
         <Box
           w="full"
-          maxHeight="550px"
-          overflowY="auto"
+          minHeight="400px"
           borderRadius="md"
-          css={{
-            '&::-webkit-scrollbar': {
-              width: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#c1c1c1',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb:hover': {
-              background: '#a8a8a8',
-            },
-          }}
         >
-          {users.map((user, index) => (
+          {currentUsers.length > 0 ? (
+            currentUsers.map((user, index) => (
+              <Box
+                key={startIndex + index}
+                w="full"
+                bg="white"
+                borderBottom="0.5px solid"
+                borderColor="gray.200"
+                py={3}
+              >
+                <HStack px={4} gap={6} justifyContent="space-between">
+                  <Avatar.Root>
+                    <Avatar.Fallback name={user.name} />
+                    <Avatar.Image src={user.avatar} />
+                  </Avatar.Root>
+                  <Text color={'black'} w="25%">{user.name}</Text>
+                  <Text color={'black'} w="25%">{user.email}</Text>
+                  <Text color={'black'} w="20%">{user.mobile}</Text>
+                  <Box w="20%">
+                    <Text
+                      color={'white'}
+                      bg={
+                        user.status === 'Successful' ? 'green.500' :
+                          user.status === 'Pending' ? 'yellow.500' :
+                            user.status === 'Overdue' ? 'red.500' : 'gray.500'
+                      }
+                      px={2}
+                      py={1}
+                      borderRadius="md"
+                      fontSize="sm"
+                      textAlign="center"
+                      display="inline-block"
+                    >
+                      {user.status}
+                    </Text>
+                  </Box>
+                </HStack>
+              </Box>
+            ))
+          ) : (
             <Box
-              key={index}
               w="full"
               bg="white"
-              borderBottom="0.5px solid"
-              borderColor="gray.200"
-              py={3}
+              py={8}
+              textAlign="center"
             >
-              <HStack px={4} gap={6} justifyContent="space-between">
-                <Avatar.Root>
-                  <Avatar.Fallback name="Segun Adebayo" />
-                  <Avatar.Image src= {user.avatar} />
-                </Avatar.Root>
-                <Text color={'black'} w="25%">{user.name}</Text>
-                <Text color={'black'} w="25%">{user.email}</Text>
-                <Text color={'black'} w="20%">{user.mobile}</Text>
-                <Text color={'black'} w="20%">{user.status}</Text>
-              </HStack>
+              <Text color="gray.500" fontSize="lg">
+                {searchTerm
+                  ? `No users found matching the current filters`
+                  : 'No users found'
+                }
+              </Text>
             </Box>
-          ))}
+          )}
         </Box>
+
+        {/* Pagination Controls */}
+        {filteredUsers.length > 0 && (
+          <Flex w="full" justifyContent="space-between" alignItems="center" mt={4}>
+            <Text fontSize="sm" color="gray.600">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} entries
+            </Text>
+
+            <HStack gap={2}>
+              <Button
+                size="sm"
+                variant="outline"
+                color={'white'}
+                bg="black"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+
+              >
+                Previous
+              </Button>
+
+              {getPageNumbers().map((page, index) => (
+                <Box key={index}>
+                  {page === '...' ? (
+                    <Text px={2} color="black">...</Text>
+                  ) : (
+                    <Button
+                      size="sm"
+                      bg={currentPage === page ? "blue.500" : "white"}
+                      color={currentPage === page ? "white" : "gray.800"}
+                      variant={currentPage === page ? "solid" : "outline"}
+                      onClick={() => handlePageChange(page as number)}
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </Box>
+              ))}
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                color={'white'}
+                bg="black"
+              // rightIcon={<LuChevronRight />}
+              >
+                Next
+              </Button>
+            </HStack>
+          </Flex>
+        )}
       </VStack>
     </Box>
   );
